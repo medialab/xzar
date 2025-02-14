@@ -92,8 +92,25 @@ def create_parser(
     return parser
 
 
+class TypedArgs:
+    def __repr__(self) -> str:
+        return "{}({})".format(
+            self.__class__.__name__,
+            ", ".join(
+                "{}={!r}".format(name, value) for name, value in vars(self).items()
+            ),
+        )
+
+
 def bind_namespace_to_args(namespace: argparse.Namespace, args_class: Type[T]) -> T:
     args = args_class()
+
+    for name, value in vars(namespace).items():
+        if name.startswith("__"):
+            continue
+
+        # TODO: we could validate type here to avoid shenanigans
+        setattr(args, name, value)
 
     return args
 
@@ -104,17 +121,19 @@ if __name__ == "__main__":
 
     Lang = Literal["fr", "en"]
 
-    class NerArgs:
+    class NerArgs(TypedArgs):
         lang: Annotated[Lang, Arg("-l", help="lang for the model", default="en")]
 
     def ner(args: NerArgs):
-        pass
+        print("NER!")
+        print(args)
 
-    class TokenizeArgs:
+    class TokenizeArgs(TypedArgs):
         model_size: Annotated[str, Arg("-M", help="size for the Spacy model")]
 
     def tokenize(args: TokenizeArgs):
-        pass
+        print("TOKENIZE")
+        print(args)
 
     commands = [
         SubCommand(
@@ -135,7 +154,5 @@ if __name__ == "__main__":
 
     parser = create_parser("xzar", commands)
     args = parser.parse_args()
-    args = bind_namespace_to_args(args, args.__args)
-
-    # todo: bind, and stringify
-    print(args)
+    bound_args = bind_namespace_to_args(args, args.__args)
+    args.__fn(bound_args)

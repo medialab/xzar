@@ -4,4 +4,5 @@ build
 .DS_Store
 *.egg-info
 .python-version
+.ruff_cache
 .vscode
