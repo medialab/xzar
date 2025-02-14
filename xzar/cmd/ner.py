@@ -1,10 +1,16 @@
 import sys
+from contextlib import redirect_stdout
 
 import casanova
 from casanova.headers import Selection, SingleColumn
 from typed_argparse import TypedArgs, arg
 
-from ..spacy_models import SpacyLang, SpacyModelSize, get_spacy_model_handle
+from ..spacy_models import (
+    SpacyLang,
+    SpacyModelSize,
+    get_spacy_model_handle,
+    get_spacy_exclude,
+)
 
 
 # TODO: either subclass TypedArgs to get optional positional and open files with __del__ or not
@@ -22,34 +28,18 @@ class NerArgs(TypedArgs):
     # output: str | None = arg("-o")
 
 
-SPICY_PIPELINE_EXCLUDE = [
-    "tagger",
-    "parser",
-    "entity_linker",
-    "entity_ruler",
-    "textcat",
-    "textcat_multilabel",
-    "lemmatizer",
-    "trainable_lemmatizer",
-    "morphologizer",
-    "attribute_ruler",
-    "senter",
-    "sentencizer",
-    "tok2vec",
-    "transformer",
-]
-
-
 def ner(args: NerArgs):
     import spacy
 
     spacy_model_handle = get_spacy_model_handle(args.lang, args.model_size)
+    spacy_exclude = get_spacy_exclude(["ner"])
 
     try:
-        nlp = spacy.load(spacy_model_handle, exclude=SPICY_PIPELINE_EXCLUDE)
+        nlp = spacy.load(spacy_model_handle, exclude=spacy_exclude)
     except OSError:
-        spacy.cli.download(spacy_model_handle)  # type: ignore
-        nlp = spacy.load(spacy_model_handle, exclude=SPICY_PIPELINE_EXCLUDE)
+        with redirect_stdout(sys.stderr):
+            spacy.cli.download(spacy_model_handle)  # type: ignore
+        nlp = spacy.load(spacy_model_handle, exclude=spacy_exclude)
 
     input_file = open(args.input, "r")
     selection = Selection(inverted=True)
@@ -64,6 +54,6 @@ def ner(args: NerArgs):
             yield text, row
 
     # TODO: flag for batch size, flag -p and -t
-    for doc, row in nlp.pipe(tuples(), as_tuples=True, n_process=-1):
+    for doc, row in nlp.pipe(tuples(), as_tuples=True, n_process=-1, batch_size=16):
         for entity in doc.ents:
             enricher.writerow(row, [entity.text, entity.label_])
