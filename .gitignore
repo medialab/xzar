@@ -1,0 +1,7 @@
+__pycache__
+build
+*.csv
+.DS_Store
+*.egg-info
+.python-version
+.vscode

@@ -1,0 +1,30 @@
+[project]
+name = "xzar"
+version = "0.0.1"
+requires-python = ">= 3.12"
+readme = "README.md"
+description = "CLI tool for model-based NLP tasks in python."
+authors = [
+  { name="Béatrice Mazoyer", email="beatrice.mazoyer@sciencespo.fr" },
+  { name="Guillaume Plique", email="guillaume.plique@sciencespo.fr" },
+]
+
+dependencies = [
+  "casanova>=2.0.2,<2.1",
+  "rich>=13.0,<14",
+  "rich-argparse==1.7.0",
+  "spacy>=3.8,<3.9",
+  "typed-argparse==0.3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff"
+]
+
+[project.scripts]
+xzar = "xzar:__main__"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
