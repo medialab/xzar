@@ -5,11 +5,14 @@ from typing import (
     Callable,
     TypeVar,
     Literal,
+    IO,
+    Annotated,
     get_type_hints,
     get_args,
     get_origin,
 )
 
+import sys
 import argparse
 from rich_argparse import RichHelpFormatter
 from dataclasses import dataclass
@@ -19,20 +22,73 @@ def snake_case_to_kebab_case(string: str) -> str:
     return string.replace("_", "-")
 
 
+def get_arg_type_hints(args: Type) -> dict[str, tuple["Arg", Type]]:
+    hints = get_type_hints(args, include_extras=True)
+    mapped_hints = {}
+
+    for name, arg_type in hints.items():
+        if (
+            not hasattr(arg_type, "__metadata__")
+            or len(arg_type.__metadata__) != 1
+            or not isinstance(arg_type.__metadata__[0], Arg)
+        ):
+            raise TypeError("cli args should be correctly annotated with an Arg!")
+
+        arg = cast(Arg, arg_type.__metadata__[0])
+        origin = get_origin(arg_type.__origin__)
+
+        mapped_hints[name] = (arg, origin)
+
+    return mapped_hints
+
+
 class Arg:
-    short_flag: str | None
-    help: str | None
-    default: str | None
+    short_flag: str | None = None
+    help: str | None = None
+    default: str | None = None
+    nargs: str | None = None
+    positional: bool = False
 
     def __init__(
         self,
         short_flag: str | None = None,
         help: str | None = None,
         default: str | None = None,
+        nargs: str | None = None,
+        positional: bool = False,
     ):
         self.short_flag = short_flag
         self.help = help
         self.default = default
+        self.nargs = nargs
+        self.positional = positional
+
+
+class ImplicitInputArg(Arg):
+    def __init__(self):
+        self.nargs = "?"
+        self.default = "-"
+        self.help = "Path to CSV file input. Will default to stdin if not given."
+        self.positional = True
+
+    def bind(self, value) -> IO[str]:
+        if value == "-":
+            return sys.stdin
+
+        return open(value, "r")
+
+
+class ImplicitOutputArg(Arg):
+    def __init__(self):
+        self.short_flag = "-o"
+        self.help = 'Write output to path instead of priting to stdout. Passing "-" as a path will also be understood as a shorthand for stdout.'
+        self.default = "-"
+
+    def bind(self, value) -> IO[str]:
+        if value == "-":
+            return sys.stdout
+
+        return open(value, "w")
 
 
 T = TypeVar("T")
@@ -61,31 +117,27 @@ def create_parser(
             formatter_class=RichHelpFormatter,
         )
 
-        hints = get_type_hints(subcommand.args, include_extras=True)
-
-        for name, arg_type in hints.items():
-            if (
-                not hasattr(arg_type, "__metadata__")
-                or len(arg_type.__metadata__) != 1
-                or not isinstance(arg_type.__metadata__[0], Arg)
-            ):
-                raise TypeError("cli arg should be correctly annotated with an Arg!")
-
+        for name, (arg, origin) in get_arg_type_hints(subcommand.args).items():
             flags = []
-            arg = cast(Arg, arg_type.__metadata__[0])
 
             if arg.short_flag is not None:
                 flags.append(arg.short_flag)
 
-            flags.append("--" + snake_case_to_kebab_case(name))
+            flags.append(
+                ("--" if not arg.positional else "") + snake_case_to_kebab_case(name)
+            )
 
             choices = None
 
-            if get_origin(arg_type.__origin__) is Literal:
-                choices = get_args(arg_type.__origin__)
+            if origin is Literal:
+                choices = get_args(origin)
 
             subparser.add_argument(
-                *flags, help=arg.help, choices=choices, default=arg.default
+                *flags,
+                help=arg.help,
+                choices=choices,
+                default=arg.default,
+                nargs=arg.nargs,
             )
             subparser.set_defaults(__fn=subcommand.fn, __args=subcommand.args)
 
@@ -102,12 +154,22 @@ class TypedArgs:
         )
 
 
+class TypicalTypedArgs(TypedArgs):
+    output: Annotated[IO[str], ImplicitOutputArg()]
+
+
 def bind_namespace_to_args(namespace: argparse.Namespace, args_class: Type[T]) -> T:
     args = args_class()
+    hints = get_arg_type_hints(args_class)
 
     for name, value in vars(namespace).items():
         if name.startswith("__"):
             continue
+
+        hint, _ = hints[name]
+
+        if hasattr(hint, "bind"):
+            value = hint.bind(value)  # type: ignore
 
         # TODO: we could validate type here to avoid shenanigans
         setattr(args, name, value)
@@ -117,18 +179,16 @@ def bind_namespace_to_args(namespace: argparse.Namespace, args_class: Type[T]) -
 
 # Tests
 if __name__ == "__main__":
-    from typing import Annotated
-
     Lang = Literal["fr", "en"]
 
-    class NerArgs(TypedArgs):
+    class NerArgs(TypicalTypedArgs):
         lang: Annotated[Lang, Arg("-l", help="lang for the model", default="en")]
 
     def ner(args: NerArgs):
         print("NER!")
         print(args)
 
-    class TokenizeArgs(TypedArgs):
+    class TokenizeArgs(TypicalTypedArgs):
         model_size: Annotated[str, Arg("-M", help="size for the Spacy model")]
 
     def tokenize(args: TokenizeArgs):
@@ -154,5 +214,9 @@ if __name__ == "__main__":
 
     parser = create_parser("xzar", commands)
     args = parser.parse_args()
-    bound_args = bind_namespace_to_args(args, args.__args)
-    args.__fn(bound_args)
+
+    if not hasattr(args, "__args"):
+        parser.print_help()
+    else:
+        bound_args = bind_namespace_to_args(args, args.__args)
+        args.__fn(bound_args)

@@ -5,10 +5,9 @@ import ctypes
 from functools import wraps
 
 import casanova
-from rich_argparse import RichHelpFormatter
-from typed_argparse import Parser, SubParserGroup
 
-from .cmd import SUBPARSERS
+from .cmd import SUBCOMMANDS
+from .argparse import create_parser, bind_namespace_to_args
 
 
 def global_setup() -> None:
@@ -50,25 +49,14 @@ def with_cli_exceptions(fn):
 @with_cli_exceptions
 def main() -> None:
     global_setup()
+    parser = create_parser("xzar", SUBCOMMANDS)
+    args = parser.parse_args()
 
-    # Dirty monkey patching
-    from argparse import _SubParsersAction
-
-    old_add_parser = _SubParsersAction.add_parser
-
-    def new_add_parser(self, *args, **kwargs):
-        kwargs["formatter_class"] = RichHelpFormatter
-        return old_add_parser(self, *args, **kwargs)
-
-    _SubParsersAction.add_parser = new_add_parser
-
-    parser = Parser(
-        SubParserGroup(*[subparser for subparser, _ in SUBPARSERS.values()]),
-        prog="xzar",
-        formatter_class=RichHelpFormatter,
-    )
-
-    parser.bind(*[fn for _, fn in SUBPARSERS.values()]).run()
+    if not hasattr(args, "__args"):
+        parser.print_help()
+    else:
+        bound_args = bind_namespace_to_args(args, args.__args)
+        args.__fn(bound_args)
 
 
 if __name__ == "__main__":

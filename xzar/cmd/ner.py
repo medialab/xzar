@@ -1,10 +1,12 @@
+from typing import Annotated, IO
+
 import sys
 from contextlib import redirect_stdout
 
 import casanova
 from casanova.headers import Selection, SingleColumn
-from typed_argparse import TypedArgs, arg
 
+from ..argparse import TypicalTypedArgs, Arg, ImplicitInputArg
 from ..spacy_models import (
     SpacyLang,
     SpacyModelSize,
@@ -13,19 +15,29 @@ from ..spacy_models import (
 )
 
 
-# TODO: either subclass TypedArgs to get optional positional and open files with __del__ or not
-class NerArgs(TypedArgs):
-    column: str = arg(positional=True)
-    input: str = arg(positional=True)
-    lang: SpacyLang = arg(
-        "-l",
-        default="en",
-        help='lang for the spacy model to use. Will default to "en".',
-    )
-    model_size: SpacyModelSize = arg(
-        "-M", default="sm", help='size of Spacy model to use. Will default to "sm".'
-    )
-    # output: str | None = arg("-o")
+class NerArgs(TypicalTypedArgs):
+    column: Annotated[
+        str,
+        Arg(
+            help="column of CSV file containing text from which to extract entities",
+            positional=True,
+        ),
+    ]
+    input: Annotated[IO[str], ImplicitInputArg()]
+    lang: Annotated[
+        SpacyLang,
+        Arg(
+            "-l",
+            default="en",
+            help='lang for the spacy model to use. Will default to "en".',
+        ),
+    ]
+    model_size: Annotated[
+        SpacyModelSize,
+        Arg(
+            "-M", default="sm", help='size of Spacy model to use. Will default to "sm".'
+        ),
+    ]
 
 
 def ner(args: NerArgs):
@@ -41,12 +53,11 @@ def ner(args: NerArgs):
             spacy.cli.download(spacy_model_handle)  # type: ignore
         nlp = spacy.load(spacy_model_handle, exclude=spacy_exclude)
 
-    input_file = open(args.input, "r")
     selection = Selection(inverted=True)
     selection.add(SingleColumn(args.column))
 
     enricher = casanova.enricher(
-        input_file, sys.stdout, add=["entity", "entity_type"], select=selection
+        args.input, args.output, add=["entity", "entity_type"], select=selection
     )
 
     def tuples():
@@ -54,6 +65,6 @@ def ner(args: NerArgs):
             yield text, row
 
     # TODO: flag for batch size, flag -p and -t
-    for doc, row in nlp.pipe(tuples(), as_tuples=True, n_process=-1, batch_size=16):
+    for doc, row in nlp.pipe(tuples(), as_tuples=True, n_process=1, batch_size=1):
         for entity in doc.ents:
             enricher.writerow(row, [entity.text, entity.label_])
