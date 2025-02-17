@@ -35,7 +35,7 @@ def get_arg_type_hints(args: Type) -> dict[str, tuple["Arg", Type]]:
             raise TypeError("cli args should be correctly annotated with an Arg!")
 
         arg = cast(Arg, arg_type.__metadata__[0])
-        origin = get_origin(arg_type.__origin__)
+        origin = arg_type.__origin__
 
         mapped_hints[name] = (arg, origin)
 
@@ -129,7 +129,7 @@ def create_parser(
 
             choices = None
 
-            if origin is Literal:
+            if get_origin(origin) is Literal:
                 choices = get_args(origin)
 
             subparser.add_argument(
