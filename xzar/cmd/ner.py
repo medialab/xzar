@@ -29,18 +29,30 @@ class NerArgs(TypicalTypedArgs):
         Arg(
             "-l",
             default="en",
-            help='lang for the spacy model to use. Will default to "en".',
+            help="lang for the spacy model to use.",
         ),
     ]
     model_size: Annotated[
         SpacyModelSize,
+        Arg("-M", default="sm", help="size of Spacy model to use."),
+    ]
+    processes: Annotated[
+        int,
         Arg(
-            "-M", default="sm", help='size of Spacy model to use. Will default to "sm".'
+            "-p",
+            help="number of processes to use. Set to -1 to select a number of processes based on the currently available CPUs.",
+            default="1",
         ),
+    ]
+    batch_size: Annotated[
+        int | None, Arg("-B", help="number of documents to process at once.")
     ]
 
 
 def ner(args: NerArgs):
+    if args.processes is not None and args.processes < -1 or args.processes == 0:
+        raise TypeError("-p/--processes should be positive or -1!")
+
     import spacy
 
     spacy_model_handle = get_spacy_model_handle(args.lang, args.model_size)
@@ -64,7 +76,8 @@ def ner(args: NerArgs):
         for row, text in enricher.cells(args.column, with_rows=True):
             yield text, row
 
-    # TODO: flag for batch size, flag -p and -t
-    for doc, row in nlp.pipe(tuples(), as_tuples=True, n_process=1, batch_size=1):
+    for doc, row in nlp.pipe(
+        tuples(), as_tuples=True, n_process=args.processes, batch_size=args.batch_size
+    ):
         for entity in doc.ents:
             enricher.writerow(row, [entity.text, entity.label_])

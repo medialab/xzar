@@ -132,12 +132,26 @@ def create_parser(
             if get_origin(origin) is Literal:
                 choices = get_args(origin)
 
+            formatted_help = arg.help
+
+            if arg.default is not None and formatted_help is not None:
+                formatted_help = formatted_help.rstrip(".") + "."
+                formatted_help += " Will default to {!r}.".format(arg.default)
+
+            argparse_type = str
+
+            if origin is int:
+                argparse_type = int
+            elif origin is float:
+                argparse_type = float
+
             subparser.add_argument(
                 *flags,
-                help=arg.help,
+                help=formatted_help,
                 choices=choices,
                 default=arg.default,
                 nargs=arg.nargs,
+                type=argparse_type,
             )
             subparser.set_defaults(__fn=subcommand.fn, __args=subcommand.args)
 
@@ -182,7 +196,7 @@ if __name__ == "__main__":
     Lang = Literal["fr", "en"]
 
     class NerArgs(TypicalTypedArgs):
-        lang: Annotated[Lang, Arg("-l", help="lang for the model", default="en")]
+        lang: Annotated[Lang, Arg("-l", help="lang for the model.", default="en")]
 
     def ner(args: NerArgs):
         print("NER!")
