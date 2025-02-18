@@ -62,7 +62,7 @@ def ner(args: NerArgs):
         nlp = spacy.load(spacy_model_handle, exclude=spacy_exclude)
     except OSError:
         with redirect_stdout(sys.stderr):
-            spacy.cli.download(spacy_model_handle)  # type: ignore
+            spacy.cli.download(spacy_model_handle, False, False, "--quiet")  # type: ignore
         nlp = spacy.load(spacy_model_handle, exclude=spacy_exclude)
 
     selection = Selection(inverted=True)

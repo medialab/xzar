@@ -1,5 +1,6 @@
 from subprocess import Popen, PIPE
 import csv
+import sys
 from io import StringIO
 
 CsvData = list[list[str]]
@@ -13,7 +14,11 @@ def xzar(args: list[str], data: CsvData) -> CsvData:
         writer.writerow(row)
 
     process = Popen(
-        ["python", "-m", "xzar"] + args, stdin=PIPE, stdout=PIPE, stderr=PIPE, text=True
+        [sys.executable, "-m", "xzar"] + args,
+        stdin=PIPE,
+        stdout=PIPE,
+        stderr=PIPE,
+        text=True,
     )
 
     stdout, _ = process.communicate(input_data.getvalue())
