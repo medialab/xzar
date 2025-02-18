@@ -145,14 +145,17 @@ def create_parser(
             elif origin is float:
                 argparse_type = float
 
-            subparser.add_argument(
-                *flags,
-                help=formatted_help,
-                choices=choices,
-                default=arg.default,
-                nargs=arg.nargs,
-                type=argparse_type,
-            )
+            if origin is bool:
+                subparser.add_argument(*flags, help=formatted_help, action="store_true")
+            else:
+                subparser.add_argument(
+                    *flags,
+                    help=formatted_help,
+                    choices=choices,
+                    default=arg.default,
+                    nargs=arg.nargs,
+                    type=argparse_type,
+                )
             subparser.set_defaults(__fn=subcommand.fn, __args=subcommand.args)
 
     return parser
