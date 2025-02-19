@@ -12,6 +12,7 @@ from rich.progress import (
 from .console import console
 
 
+# ref: https://rich.readthedocs.io/en/stable/progress.html
 class LoadingBar:
     def __init__(self, title: str, total: int | None = None):
         self.progress = Progress(
