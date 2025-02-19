@@ -68,7 +68,7 @@ class ImplicitInputArg(Arg):
     def __init__(self):
         self.nargs = "?"
         self.default = "-"
-        self.help = "Path to CSV file input. Will default to stdin if not given."
+        self.help = "path to CSV file input. Will default to stdin if not given."
         self.positional = True
 
     def bind(self, value) -> IO[str]:
@@ -81,7 +81,7 @@ class ImplicitInputArg(Arg):
 class ImplicitOutputArg(Arg):
     def __init__(self):
         self.short_flag = "-o"
-        self.help = 'Write output to path instead of priting to stdout. Passing "-" as a path will also be understood as a shorthand for stdout.'
+        self.help = 'write output to path instead of priting to stdout. Passing "-" as a path will also be understood as a shorthand for stdout.'
         self.default = "-"
 
     def bind(self, value) -> IO[str]:
@@ -119,6 +119,7 @@ def create_parser(
 
         for name, (arg, origin) in get_arg_type_hints(subcommand.args).items():
             flags = []
+            subparser_kwargs = {}
 
             if arg.short_flag is not None:
                 flags.append(arg.short_flag)
@@ -127,32 +128,29 @@ def create_parser(
                 ("--" if not arg.positional else "") + snake_case_to_kebab_case(name)
             )
 
-            choices = None
-
             if get_origin(origin) is Literal:
-                choices = get_args(origin)
+                subparser_kwargs["choices"] = get_args(origin)
 
-            formatted_help = arg.help
-
-            if arg.default is not None and formatted_help is not None:
-                formatted_help = formatted_help.rstrip(".") + "."
-                formatted_help += " Will default to {!r}.".format(arg.default)
-
-            argparse_type = str
+            if arg.help is not None:
+                subparser_kwargs["help"] = arg.help.rstrip(".") + "."
+                if arg.default is not None and not isinstance(
+                    arg, (ImplicitOutputArg, ImplicitInputArg)
+                ):
+                    subparser_kwargs["help"] += " Defaults to {!r}.".format(arg.default)
 
             if origin is int:
-                argparse_type = int
-            elif origin is float:
-                argparse_type = float
+                subparser_kwargs["type"] = int
 
-            subparser.add_argument(
-                *flags,
-                help=formatted_help,
-                choices=choices,
-                default=arg.default,
-                nargs=arg.nargs,
-                type=argparse_type,
-            )
+            elif origin is float:
+                subparser_kwargs["type"] = float
+
+            if origin is bool:
+                subparser_kwargs["action"] = "store_true"
+            else:
+                subparser_kwargs["default"] = arg.default
+                subparser_kwargs["nargs"] = arg.nargs
+
+            subparser.add_argument(*flags, **subparser_kwargs)
             subparser.set_defaults(__fn=subcommand.fn, __args=subcommand.args)
 
     return parser
