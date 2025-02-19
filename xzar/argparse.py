@@ -68,7 +68,7 @@ class ImplicitInputArg(Arg):
     def __init__(self):
         self.nargs = "?"
         self.default = "-"
-        self.help = "Path to CSV file input. Will default to stdin if not given."
+        self.help = "path to CSV file input. Will default to stdin if not given."
         self.positional = True
 
     def bind(self, value) -> IO[str]:
@@ -81,7 +81,7 @@ class ImplicitInputArg(Arg):
 class ImplicitOutputArg(Arg):
     def __init__(self):
         self.short_flag = "-o"
-        self.help = 'Write output to path instead of priting to stdout. Passing "-" as a path will also be understood as a shorthand for stdout.'
+        self.help = 'write output to path instead of priting to stdout. Passing "-" as a path will also be understood as a shorthand for stdout.'
         self.default = "-"
 
     def bind(self, value) -> IO[str]:
@@ -131,9 +131,12 @@ def create_parser(
             if get_origin(origin) is Literal:
                 subparser_kwargs["choices"] = get_args(origin)
 
-            if arg.default is not None and arg.help is not None:
+            if arg.help is not None:
                 subparser_kwargs["help"] = arg.help.rstrip(".") + "."
-                subparser_kwargs["help"] += " Will default to {!r}.".format(arg.default)
+                if arg.default is not None and not isinstance(
+                    arg, (ImplicitOutputArg, ImplicitInputArg)
+                ):
+                    subparser_kwargs["help"] += " Defaults to {!r}.".format(arg.default)
 
             if origin is int:
                 subparser_kwargs["type"] = int

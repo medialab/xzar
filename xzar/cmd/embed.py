@@ -1,7 +1,8 @@
 from typing import Annotated, IO
+import casanova
+from ebbe import as_chunks
 
 from ..argparse import TypicalTypedArgs, Arg, ImplicitInputArg
-from ..transformers_models import SentenceTransformersLang
 
 
 class EmbedArgs(TypicalTypedArgs):
@@ -12,18 +13,52 @@ class EmbedArgs(TypicalTypedArgs):
             positional=True,
         ),
     ]
-    input: Annotated[IO[str], ImplicitInputArg()]
-    lang: Annotated[
-        SentenceTransformersLang,
+    column_prefix: Annotated[
+        str,
         Arg(
-            "-l",
-            default="en",
-            help="lang for the sentence-transformers model to use.",
+            help="prefix used to identify embedding columns in the resulting CSV file",
+            default="dim_",
         ),
     ]
-    npy: Annotated[bool, Arg(help="npy")]
+    input: Annotated[IO[str], ImplicitInputArg()]
+    model: Annotated[
+        str,
+        Arg(
+            "-m",
+            help="sentence-transformers model name in the Hugging Face hub "
+            "(https://huggingface.co/models?library=sentence-transformers) "
+            "or path to a model on disc.",
+            default="ibm-granite/granite-embedding-107m-multilingual",
+        ),
+    ]
+    npy: Annotated[
+        bool,
+        Arg(help="output a .npy file instead of a CSV. If set, --output is required."),
+    ]
+    batch_size: Annotated[
+        int,
+        Arg("-B", help="number of documents to process at once.", default=128),
+    ]
 
 
 def embed(args: EmbedArgs):
-    print(args)
-    return
+    from sentence_transformers import SentenceTransformer
+
+    transformer = SentenceTransformer(args.model)
+
+    embedding_size = transformer.get_sentence_embedding_dimension()
+
+    enricher = casanova.enricher(
+        args.input,
+        args.output,
+        add=[args.column_prefix + str(i) for i in range(embedding_size)],
+    )
+
+    for chunk in as_chunks(
+        args.batch_size, enricher.cells(args.column, with_rows=True)
+    ):
+        embeddings = transformer.encode(
+            [c[1] for c in chunk], batch_size=args.batch_size
+        )
+        for row, embedding in zip(chunk, embeddings):
+            enricher.writerow(row[0], embedding)
