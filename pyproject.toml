@@ -11,8 +11,10 @@ authors = [
 
 dependencies = [
   "casanova>=2.0.2,<2.1",
+  "protobuf>=5.29,<6",
   "rich-argparse==1.7.0",
   "spacy>=3.8,<3.9",
+  "sentencepiece==0.2.0",
   "sentence-transformers>=3.4,<3.5",
 ]
 
