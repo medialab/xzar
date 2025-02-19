@@ -42,6 +42,15 @@ def get_arg_type_hints(args: Type) -> dict[str, tuple["Arg", Type]]:
     return mapped_hints
 
 
+def get_optional_type(t):
+    args = get_args(t)
+
+    if len(args) == 2 and get_origin(args[0]) is None:
+        return args[0]
+
+    return
+
+
 class Arg:
     short_flag: str | None = None
     help: str | None = None
@@ -138,10 +147,10 @@ def create_parser(
                 ):
                     subparser_kwargs["help"] += " Defaults to {!r}.".format(arg.default)
 
-            if origin is int:
+            if origin is int or get_optional_type(origin) is int:
                 subparser_kwargs["type"] = int
 
-            elif origin is float:
+            elif origin is float or get_optional_type(origin) is float:
                 subparser_kwargs["type"] = float
 
             if origin is bool:
@@ -167,6 +176,12 @@ class TypedArgs:
 
 
 class TypicalTypedArgs(TypedArgs):
+    total: Annotated[
+        int | None,
+        Arg(
+            help="total number of items to process. Might be necessary when you want to display a finite progress indicator for large files given as input to the command."
+        ),
+    ]
     output: Annotated[IO[str], ImplicitOutputArg()]
 
 

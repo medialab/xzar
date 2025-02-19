@@ -9,12 +9,16 @@ import casanova
 from .cmd import SUBCOMMANDS
 from .argparse import create_parser, bind_namespace_to_args
 
+# ~3mb
+DEFAULT_PREBUFFER_BYTES = 3_000_000
+
 
 def global_setup() -> None:
     csv.field_size_limit(int(ctypes.c_ulong(-1).value // 2))
 
     # Casanova global defaults
     casanova.set_defaults(
+        prebuffer_bytes=DEFAULT_PREBUFFER_BYTES,
         strip_null_bytes_on_read=True,
         strip_null_bytes_on_write=True,
     )

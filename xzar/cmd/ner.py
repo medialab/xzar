@@ -7,6 +7,7 @@ import casanova
 from casanova.headers import Selection, SingleColumn
 
 from ..argparse import TypicalTypedArgs, Arg, ImplicitInputArg
+from ..loading_bar import LoadingBar
 from ..spacy_models import (
     SpacyLang,
     SpacyModelSize,
@@ -76,8 +77,16 @@ def ner(args: NerArgs):
         for row, text in enricher.cells(args.column, with_rows=True):
             yield text, row
 
-    for doc, row in nlp.pipe(
-        tuples(), as_tuples=True, n_process=args.processes, batch_size=args.batch_size
-    ):
-        for entity in doc.ents:
-            enricher.writerow(row, [entity.text, entity.label_])
+    with LoadingBar.from_reader(
+        enricher, "Extracting", total=args.total
+    ) as loading_bar:
+        for doc, row in nlp.pipe(
+            tuples(),
+            as_tuples=True,
+            n_process=args.processes,
+            batch_size=args.batch_size,
+        ):
+            for entity in doc.ents:
+                enricher.writerow(row, [entity.text, entity.label_])
+
+            loading_bar.advance()
