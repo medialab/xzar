@@ -12,4 +12,4 @@ class TestEmbedCommand:
         )
         assert headers == expected_headers
         assert len(row[1:]) == DEFAULT_EMBEDDING_SIZE
-        float(row[1])
+        assert all(float(x) for x in row[1:])
