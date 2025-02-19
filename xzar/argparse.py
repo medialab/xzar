@@ -119,6 +119,7 @@ def create_parser(
 
         for name, (arg, origin) in get_arg_type_hints(subcommand.args).items():
             flags = []
+            subparser_kwargs = {}
 
             if arg.short_flag is not None:
                 flags.append(arg.short_flag)
@@ -127,35 +128,26 @@ def create_parser(
                 ("--" if not arg.positional else "") + snake_case_to_kebab_case(name)
             )
 
-            choices = None
-
             if get_origin(origin) is Literal:
-                choices = get_args(origin)
+                subparser_kwargs["choices"] = get_args(origin)
 
-            formatted_help = arg.help
-
-            if arg.default is not None and formatted_help is not None:
-                formatted_help = formatted_help.rstrip(".") + "."
-                formatted_help += " Will default to {!r}.".format(arg.default)
-
-            argparse_type = str
+            if arg.default is not None and arg.help is not None:
+                subparser_kwargs["help"] = arg.help.rstrip(".") + "."
+                subparser_kwargs["help"] += " Will default to {!r}.".format(arg.default)
 
             if origin is int:
-                argparse_type = int
+                subparser_kwargs["type"] = int
+
             elif origin is float:
-                argparse_type = float
+                subparser_kwargs["type"] = float
 
             if origin is bool:
-                subparser.add_argument(*flags, help=formatted_help, action="store_true")
+                subparser_kwargs["action"] = "store_true"
             else:
-                subparser.add_argument(
-                    *flags,
-                    help=formatted_help,
-                    choices=choices,
-                    default=arg.default,
-                    nargs=arg.nargs,
-                    type=argparse_type,
-                )
+                subparser_kwargs["default"] = arg.default
+                subparser_kwargs["nargs"] = arg.nargs
+
+            subparser.add_argument(*flags, **subparser_kwargs)
             subparser.set_defaults(__fn=subcommand.fn, __args=subcommand.args)
 
     return parser
