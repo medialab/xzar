@@ -3,6 +3,7 @@ import casanova
 from ebbe import as_chunks
 
 from ..argparse import TypicalTypedArgs, Arg, ImplicitInputArg
+from ..loading_bar import LoadingBar
 
 
 class EmbedArgs(TypicalTypedArgs):
@@ -62,11 +63,13 @@ def embed(args: EmbedArgs):
         add=[args.column_prefix + str(i) for i in range(embedding_size)],
     )
 
-    for chunk in as_chunks(
-        args.batch_size, enricher.cells(args.column, with_rows=True)
-    ):
-        embeddings = transformer.encode(
-            [c[1] for c in chunk], batch_size=args.batch_size
-        )
-        for row, embedding in zip(chunk, embeddings):
-            enricher.writerow(row[0], embedding)
+    with LoadingBar.from_reader(enricher, "Embedding", args.total) as loading_bar:
+        for chunk in as_chunks(
+            args.batch_size, enricher.cells(args.column, with_rows=True)
+        ):
+            embeddings = transformer.encode(
+                [c[1] for c in chunk], batch_size=args.batch_size
+            )
+            for row, embedding in zip(chunk, embeddings):
+                enricher.writerow(row[0], embedding)
+                loading_bar.advance()
