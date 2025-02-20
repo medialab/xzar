@@ -1,3 +1,4 @@
+import types
 from typing import (
     cast,
     Iterable,
@@ -43,6 +44,9 @@ def get_arg_type_hints(args: Type) -> dict[str, tuple["Arg", Type]]:
 
 
 def get_optional_type(t):
+    if get_origin(t) is not types.UnionType:
+        return
+
     args = get_args(t)
 
     if len(args) == 2 and get_origin(args[0]) is None:
