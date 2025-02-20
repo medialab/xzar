@@ -76,10 +76,13 @@ def get_optional_type(t):
     return
 
 
+ArgparseDefaultValue = str | int | float
+
+
 class Arg:
     short_flag: str | None = None
     help: str | None = None
-    default: str | None = None
+    default: ArgparseDefaultValue | None = None
     nargs: str | None = None
     positional: bool = False
     validate: Callable[[Any], None] | None = None
@@ -88,7 +91,7 @@ class Arg:
         self,
         short_flag: str | None = None,
         help: str | None = None,
-        default: str | None = None,
+        default: ArgparseDefaultValue | None = None,
         nargs: str | None = None,
         positional: bool = False,
         validate: Callable[[Any], None] | None = None,
@@ -204,12 +207,6 @@ class TypicalTypedArgs(TypedArgs):
             help="total number of items to process. Might be necessary when you want to display a finite progress indicator for large files given as input to the command."
         ),
     ]
-    resume: Annotated[
-        bool,
-        Arg(
-            help="Whether to resume from an aborted collection. Need -o/--output to be set."
-        ),
-    ]
     output: Annotated[IO[str], ImplicitOutputArg()]
 
     def internal_resolve(self):
@@ -222,7 +219,7 @@ class TypicalTypedArgs(TypedArgs):
 
         output_path = cast(str, getattr(self, "output"))
 
-        if self.resume:
+        if hasattr(self, "resume") and getattr(self, "resume"):
             if output_path == "-":
                 raise ResolvingError(
                     "cannot use --resume without knowing the output path through -o/--output!"

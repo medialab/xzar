@@ -14,7 +14,7 @@ from .console import console
 
 # ref: https://rich.readthedocs.io/en/stable/progress.html
 class LoadingBar:
-    def __init__(self, title: str, total: int | None = None):
+    def __init__(self, title: str, total: int | None = None, transient: bool = False):
         self.progress = Progress(
             TextColumn("[progress.description]{task.description}"),
             SpinnerColumn(),
@@ -23,6 +23,7 @@ class LoadingBar:
             MofNCompleteColumn(),
             TimeRemainingColumn(),
             console=console,
+            transient=transient,
         )
         self.task = self.progress.add_task(title, total=total)
 

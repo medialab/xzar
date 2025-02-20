@@ -39,6 +39,12 @@ class EmbedArgs(TypicalTypedArgs):
         int,
         Arg("-B", help="number of documents to process at once.", default=128),
     ]
+    resume: Annotated[
+        bool,
+        Arg(
+            help="Whether to resume from an aborted collection. Need -o/--output to be set."
+        ),
+    ]
 
 
 def embed(args: EmbedArgs):
@@ -47,6 +53,8 @@ def embed(args: EmbedArgs):
     transformer = SentenceTransformer(args.model)
 
     embedding_size = transformer.get_sentence_embedding_dimension()
+
+    assert embedding_size is not None
 
     enricher = casanova.enricher(
         args.input,
