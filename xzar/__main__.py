@@ -9,6 +9,7 @@ import casanova
 from .cmd import SUBCOMMANDS
 from .console import console
 from .argparse import create_parser, bind_namespace_to_args, resolve
+from .exceptions import ArgumentValidationError, ResolvingError
 
 # ~3mb
 DEFAULT_PREBUFFER_BYTES = 3_000_000
@@ -60,11 +61,15 @@ def main() -> None:
     if not hasattr(args, "__args"):
         parser.print_help()
     else:
-        bound_args = bind_namespace_to_args(args, args.__args)
+        try:
+            bound_args = bind_namespace_to_args(args, args.__args)
+        except ArgumentValidationError as e:
+            console.print("[red]" + str(e))
+            sys.exit(1)
 
         try:
             resolve(bound_args)
-        except TypeError as e:
+        except ResolvingError as e:
             console.print("[red]" + str(e))
             sys.exit(1)
 

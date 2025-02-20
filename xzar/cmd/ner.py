@@ -7,6 +7,7 @@ import casanova
 from casanova.headers import Selection, SingleColumn
 
 from ..argparse import TypicalTypedArgs, Arg, ImplicitInputArg
+from ..exceptions import ArgumentValidationError
 from ..loading_bar import LoadingBar
 from ..spacy_models import (
     SpacyLang,
@@ -14,6 +15,11 @@ from ..spacy_models import (
     get_spacy_model_handle,
     get_spacy_exclude,
 )
+
+
+def validate_processes(p: int):
+    if p is not None and p < -1 or p == 0:
+        raise ArgumentValidationError("-p/--processes should be positive or -1!")
 
 
 class NerArgs(TypicalTypedArgs):
@@ -43,6 +49,7 @@ class NerArgs(TypicalTypedArgs):
             "-p",
             help="number of processes to use. Set to -1 to select a number of processes based on the currently available CPUs.",
             default="1",
+            validate=validate_processes,
         ),
     ]
     batch_size: Annotated[
@@ -51,9 +58,6 @@ class NerArgs(TypicalTypedArgs):
 
 
 def ner(args: NerArgs):
-    if args.processes is not None and args.processes < -1 or args.processes == 0:
-        raise TypeError("-p/--processes should be positive or -1!")
-
     import spacy
 
     spacy_model_handle = get_spacy_model_handle(args.lang, args.model_size)

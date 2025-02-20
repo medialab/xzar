@@ -8,6 +8,7 @@ from typing import (
     Literal,
     IO,
     Annotated,
+    Any,
     get_type_hints,
     get_args,
     get_origin,
@@ -17,6 +18,8 @@ import sys
 import argparse
 from rich_argparse import RichHelpFormatter
 from dataclasses import dataclass
+
+from .exceptions import ResolvingError
 
 # Typed argparse workflow:
 #   1. we create an argument parser from a series of subcommands
@@ -70,6 +73,7 @@ class Arg:
     default: str | None = None
     nargs: str | None = None
     positional: bool = False
+    validate: Callable[[Any], None] | None = None
 
     def __init__(
         self,
@@ -78,12 +82,14 @@ class Arg:
         default: str | None = None,
         nargs: str | None = None,
         positional: bool = False,
+        validate: Callable[[Any], None] | None = None,
     ):
         self.short_flag = short_flag
         self.help = help
         self.default = default
         self.nargs = nargs
         self.positional = positional
+        self.validate = validate
 
 
 class ImplicitInputArg(Arg):
@@ -209,7 +215,7 @@ class TypicalTypedArgs(TypedArgs):
 
         if self.resume:
             if output_path == "-":
-                raise TypeError(
+                raise ResolvingError(
                     "cannot use --resume without knowing the output path through -o/--output!"
                 )
 
@@ -241,6 +247,9 @@ def bind_namespace_to_args(namespace: argparse.Namespace, args_class: Type[T]) -
 
         if hasattr(hint, "bind"):
             value = hint.bind(value)  # type: ignore
+
+        if hint.validate is not None:
+            hint.validate(value)
 
         # TODO: we could validate type here to avoid shenanigans
         setattr(args, name, value)
