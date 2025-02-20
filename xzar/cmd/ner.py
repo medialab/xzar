@@ -1,20 +1,12 @@
 from typing import Annotated, IO
 
-import sys
-from contextlib import redirect_stdout
-
 import casanova
 from casanova.headers import Selection, SingleColumn
 
 from ..argparse import TypicalTypedArgs, Arg, ImplicitInputArg
 from ..exceptions import ArgumentValidationError
 from ..loading_bar import LoadingBar
-from ..spacy_models import (
-    SpacyLang,
-    SpacyModelSize,
-    get_spacy_model_handle,
-    get_spacy_exclude,
-)
+from ..spacy_models import SpacyLang, SpacyModelSize, acquire_model
 
 
 def validate_processes(p: int):
@@ -58,17 +50,7 @@ class NerArgs(TypicalTypedArgs):
 
 
 def ner(args: NerArgs):
-    import spacy
-
-    spacy_model_handle = get_spacy_model_handle(args.lang, args.model_size)
-    spacy_exclude = get_spacy_exclude(["ner"])
-
-    try:
-        nlp = spacy.load(spacy_model_handle, exclude=spacy_exclude)
-    except OSError:
-        with redirect_stdout(sys.stderr):
-            spacy.cli.download(spacy_model_handle, False, False, "--quiet")  # type: ignore
-        nlp = spacy.load(spacy_model_handle, exclude=spacy_exclude)
+    nlp = acquire_model(args.lang, args.model_size, ["ner"])
 
     selection = Selection(inverted=True)
     selection.add(SingleColumn(args.column))

@@ -21,7 +21,10 @@ def xzar(args: list[str], data: CsvData) -> CsvData:
         text=True,
     )
 
-    stdout, _ = process.communicate(input_data.getvalue())
+    stdout, stderr = process.communicate(input_data.getvalue())
+
+    if process.returncode != 0:
+        raise AssertionError(stderr)
 
     output_data = StringIO()
     output_data.write(stdout)

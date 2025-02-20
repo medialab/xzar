@@ -1,4 +1,7 @@
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from spacy.language import Language
 
 SpacyModelSize = Literal["sm", "md", "lg", "trf"]
 SpacyLang = Literal[
@@ -43,3 +46,23 @@ SPICY_PIPELINE_COMPONENTS = [
 
 def get_spacy_exclude(include: list[str]) -> list[str]:
     return [c for c in SPICY_PIPELINE_COMPONENTS if c not in include]
+
+
+def acquire_model(
+    lang: SpacyLang, size: SpacyModelSize, include: list[str]
+) -> "Language":
+    import sys
+    import spacy
+    from contextlib import redirect_stdout
+
+    spacy_model_handle = get_spacy_model_handle(lang, size)
+    spacy_exclude = get_spacy_exclude(include)
+
+    try:
+        nlp = spacy.load(spacy_model_handle, exclude=spacy_exclude)
+    except OSError:
+        with redirect_stdout(sys.stderr):
+            spacy.cli.download(spacy_model_handle, False, False, "--quiet")  # type: ignore
+        nlp = spacy.load(spacy_model_handle, exclude=spacy_exclude)
+
+    return nlp
