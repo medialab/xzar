@@ -1,5 +1,5 @@
 from typing import Annotated, IO
-import casanova
+from casanova import Enricher
 from ebbe import as_chunks
 
 from ..argparse import TypicalTypedArgs, Arg, ImplicitInputArg
@@ -57,11 +57,12 @@ def embed(args: EmbedArgs):
 
     assert embedding_size is not None
 
-    enricher = casanova.enricher(
-        args.input,
-        args.output,
-        add=[args.column_prefix + str(i) for i in range(embedding_size)],
-    )
+    with LoadingBar.resuming(args.output):
+        enricher = Enricher(
+            args.input,
+            args.output,
+            add=[args.column_prefix + str(i) for i in range(embedding_size)],
+        )
 
     with LoadingBar.from_enricher(enricher, "Embedding", args.total) as loading_bar:
         for chunk in as_chunks(

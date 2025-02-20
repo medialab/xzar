@@ -1,4 +1,7 @@
-from casanova import Enricher
+from typing import ContextManager
+
+from contextlib import nullcontext
+from casanova import Enricher, RowCountResumer
 from rich.progress import (
     Progress,
     TextColumn,
@@ -51,6 +54,24 @@ class LoadingBar:
             already_completed = enricher.resumer.already_done_count()
 
         return cls(title, total=actual_total, already_completed=already_completed)
+
+    @classmethod
+    def resuming(cls, output) -> ContextManager:
+        if not isinstance(output, RowCountResumer):
+            return nullcontext()
+
+        resume_loading_bar = LoadingBar(
+            title="Resuming",
+            transient=False,
+        )
+
+        def listener(event, _):
+            if event == "output.row.read":
+                resume_loading_bar.advance()
+
+        output.set_listener(listener)
+
+        return resume_loading_bar
 
     def advance(self, count: int = 1):
         self.progress.update(self.task, advance=count)
