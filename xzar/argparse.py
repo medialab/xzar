@@ -18,6 +18,15 @@ import argparse
 from rich_argparse import RichHelpFormatter
 from dataclasses import dataclass
 
+# Typed argparse workflow:
+#   1. we create an argument parser from a series of subcommands
+#      that contains typed annotated arguments.
+#   2. we parse the command line arguments with it.
+#   3. we instantiate and "bind" the typed arguments class.
+#   4. we "resolve" the typed arguments. At that point we have
+#      access to all the bound arguments and we can validate
+#      them dependently and wrangle them if needed.
+
 
 def snake_case_to_kebab_case(string: str) -> str:
     return string.replace("_", "-")
@@ -84,24 +93,12 @@ class ImplicitInputArg(Arg):
         self.help = "path to CSV file input. Will default to stdin if not given."
         self.positional = True
 
-    def bind(self, value) -> IO[str]:
-        if value == "-":
-            return sys.stdin
-
-        return open(value, "r")
-
 
 class ImplicitOutputArg(Arg):
     def __init__(self):
         self.short_flag = "-o"
-        self.help = 'write output to path instead of priting to stdout. Passing "-" as a path will also be understood as a shorthand for stdout.'
+        self.help = 'writoutput_pathe output to path instead of priting to stdout. Passing "-" as a path will also be understood as a shorthand for stdout.'
         self.default = "-"
-
-    def bind(self, value) -> IO[str]:
-        if value == "-":
-            return sys.stdout
-
-        return open(value, "w")
 
 
 T = TypeVar("T")
@@ -178,6 +175,12 @@ class TypedArgs:
             ),
         )
 
+    def internal_resolve(self):
+        raise NotImplementedError
+
+    def resolve(self):
+        raise NotImplementedError
+
 
 class TypicalTypedArgs(TypedArgs):
     total: Annotated[
@@ -186,7 +189,44 @@ class TypicalTypedArgs(TypedArgs):
             help="total number of items to process. Might be necessary when you want to display a finite progress indicator for large files given as input to the command."
         ),
     ]
+    resume: Annotated[
+        bool,
+        Arg(
+            help="Whether to resume from an aborted collection. Need -o/--output to be set."
+        ),
+    ]
     output: Annotated[IO[str], ImplicitOutputArg()]
+
+    def internal_resolve(self):
+        try:
+            input_path = cast(str, getattr(self, "input"))
+        except AttributeError:
+            raise TypeError(
+                'could not find "input" attribute. Did you forget to add it?'
+            )
+
+        output_path = cast(str, getattr(self, "output"))
+
+        if self.resume:
+            if output_path == "-":
+                raise TypeError(
+                    "cannot use --resume without knowing the output path through -o/--output!"
+                )
+
+            raise RuntimeError("not implemented yet!")
+
+        if input_path == "-":
+            input_io = sys.stdin
+        else:
+            input_io = open(input_path, "r")
+
+        if output_path == "-":
+            output_io = sys.stdout
+        else:
+            output_io = open(output_path, "w")
+
+        setattr(self, "input", input_io)
+        setattr(self, "output", output_io)
 
 
 def bind_namespace_to_args(namespace: argparse.Namespace, args_class: Type[T]) -> T:
@@ -206,6 +246,18 @@ def bind_namespace_to_args(namespace: argparse.Namespace, args_class: Type[T]) -
         setattr(args, name, value)
 
     return args
+
+
+def resolve(args: TypedArgs):
+    try:
+        args.internal_resolve()
+    except NotImplementedError:
+        pass
+
+    try:
+        args.resolve()
+    except NotImplementedError:
+        pass
 
 
 # Tests

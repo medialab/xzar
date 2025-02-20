@@ -7,7 +7,8 @@ from functools import wraps
 import casanova
 
 from .cmd import SUBCOMMANDS
-from .argparse import create_parser, bind_namespace_to_args
+from .console import console
+from .argparse import create_parser, bind_namespace_to_args, resolve
 
 # ~3mb
 DEFAULT_PREBUFFER_BYTES = 3_000_000
@@ -60,6 +61,13 @@ def main() -> None:
         parser.print_help()
     else:
         bound_args = bind_namespace_to_args(args, args.__args)
+
+        try:
+            resolve(bound_args)
+        except TypeError as e:
+            console.print("[red]" + str(e))
+            sys.exit(1)
+
         args.__fn(bound_args)
 
 
