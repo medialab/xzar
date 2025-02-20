@@ -31,6 +31,15 @@ from .exceptions import ResolvingError
 #      them dependently and wrangle them if needed.
 
 
+RichHelpFormatter.highlights = [
+    r"(?P<args>-[a-zA-Z])[\s/.]",  # -f flags
+    r"(?P<args>--[a-z]+(-[a-z]+)*)[\s/.]",  # --flag flags
+    r'(?P<metavar>"[^"]+")',  # double-quote literals
+    r"(?P<metavar>`[^`]+`)",  # backtick literals
+    r"(?P<args>https?://\S+)",  # urls
+]
+
+
 def snake_case_to_kebab_case(string: str) -> str:
     return string.replace("_", "-")
 
@@ -152,7 +161,7 @@ def create_parser(
                 if arg.default is not None and not isinstance(
                     arg, (ImplicitOutputArg, ImplicitInputArg)
                 ):
-                    subparser_kwargs["help"] += " Defaults to {!r}.".format(arg.default)
+                    subparser_kwargs["help"] += ' Defaults to "{}".'.format(arg.default)
 
             if origin is int or get_optional_type(origin) is int:
                 subparser_kwargs["type"] = int
