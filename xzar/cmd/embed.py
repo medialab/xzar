@@ -63,7 +63,7 @@ def embed(args: EmbedArgs):
         add=[args.column_prefix + str(i) for i in range(embedding_size)],
     )
 
-    with LoadingBar.from_reader(enricher, "Embedding", args.total) as loading_bar:
+    with LoadingBar.from_enricher(enricher, "Embedding", args.total) as loading_bar:
         for chunk in as_chunks(
             args.batch_size, enricher.cells(args.column, with_rows=True)
         ):

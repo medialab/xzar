@@ -18,6 +18,7 @@ import sys
 import argparse
 from rich_argparse import RichHelpFormatter
 from dataclasses import dataclass
+from casanova import RowCountResumer
 
 from .exceptions import ResolvingError
 
@@ -219,13 +220,15 @@ class TypicalTypedArgs(TypedArgs):
 
         output_path = cast(str, getattr(self, "output"))
 
+        resuming_io = None
+
         if hasattr(self, "resume") and getattr(self, "resume"):
             if output_path == "-":
                 raise ResolvingError(
                     "cannot use --resume without knowing the output path through -o/--output!"
                 )
 
-            raise RuntimeError("not implemented yet!")
+            resuming_io = RowCountResumer(output_path)
 
         if input_path == "-":
             input_io = sys.stdin
@@ -234,6 +237,8 @@ class TypicalTypedArgs(TypedArgs):
 
         if output_path == "-":
             output_io = sys.stdout
+        elif resuming_io is not None:
+            output_io = resuming_io
         else:
             output_io = open(output_path, "w")
 

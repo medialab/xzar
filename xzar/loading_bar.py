@@ -1,4 +1,4 @@
-from casanova import Reader
+from casanova import Enricher
 from rich.progress import (
     Progress,
     TextColumn,
@@ -14,7 +14,13 @@ from .console import console
 
 # ref: https://rich.readthedocs.io/en/stable/progress.html
 class LoadingBar:
-    def __init__(self, title: str, total: int | None = None, transient: bool = False):
+    def __init__(
+        self,
+        title: str,
+        total: int | None = None,
+        transient: bool = False,
+        already_completed: int | None = None,
+    ):
         self.progress = Progress(
             TextColumn("[progress.description]{task.description}"),
             SpinnerColumn(),
@@ -27,16 +33,24 @@ class LoadingBar:
         )
         self.task = self.progress.add_task(title, total=total)
 
+        if already_completed is not None:
+            self.advance(already_completed)
+
     @classmethod
-    def from_reader(
-        cls, reader: Reader, title: str, total: int | None = None
+    def from_enricher(
+        cls, enricher: Enricher, title: str, total: int | None = None
     ) -> "LoadingBar":
-        actual_total = reader.total
+        actual_total = enricher.total
 
         if actual_total is None:
             actual_total = total
 
-        return cls(title, total=actual_total)
+        already_completed = None
+
+        if enricher.resumer is not None:
+            already_completed = enricher.resumer.already_done_count()
+
+        return cls(title, total=actual_total, already_completed=already_completed)
 
     def advance(self, count: int = 1):
         self.progress.update(self.task, advance=count)

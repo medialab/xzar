@@ -81,7 +81,7 @@ def ner(args: NerArgs):
         for row, text in enricher.cells(args.column, with_rows=True):
             yield text, row
 
-    with LoadingBar.from_reader(
+    with LoadingBar.from_enricher(
         enricher, "Extracting", total=args.total
     ) as loading_bar:
         for doc, row in nlp.pipe(
