@@ -24,13 +24,24 @@ class LoadingBar:
         transient: bool = False,
         already_completed: int | None = None,
     ):
+        if total is not None:
+            columns = [
+                TextColumn("[progress.description]{task.description}"),
+                SpinnerColumn(),
+                BarColumn(),
+                TaskProgressColumn(),
+                MofNCompleteColumn(),
+                TimeRemainingColumn(),
+            ]
+        else:
+            columns = [
+                TextColumn("[progress.description]{task.description}"),
+                SpinnerColumn(),
+                MofNCompleteColumn(),
+            ]
+
         self.progress = Progress(
-            TextColumn("[progress.description]{task.description}"),
-            SpinnerColumn(),
-            BarColumn(),
-            TaskProgressColumn(),
-            MofNCompleteColumn(),
-            TimeRemainingColumn(),
+            *columns,
             console=console,
             transient=transient,
         )
