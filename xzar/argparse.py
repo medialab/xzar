@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from casanova import RowCountResumer
 
 from .exceptions import ResolvingError
+from .utils import acquire_cross_platform_stdout
 
 # Typed argparse workflow:
 #   1. we create an argument parser from a series of subcommands
@@ -233,14 +234,14 @@ class TypicalTypedArgs(TypedArgs):
         if input_path == "-":
             input_io = sys.stdin
         else:
-            input_io = open(input_path, "r")
+            input_io = open(input_path, "r", encoding="utf-8")
 
         if output_path == "-":
-            output_io = sys.stdout
+            output_io = acquire_cross_platform_stdout()
         elif resuming_io is not None:
             output_io = resuming_io
         else:
-            output_io = open(output_path, "w")
+            output_io = open(output_path, "w", encoding="utf-8", newline="")
 
         setattr(self, "input", input_io)
         setattr(self, "output", output_io)
